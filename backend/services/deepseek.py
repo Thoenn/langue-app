@@ -56,6 +56,11 @@ Return ONLY valid JSON in this exact format:
   "register": "formal/informal/neutral",
   "common_mistakes": "..."
 }""",
+
+    "generate_course": """You are a language education expert. Create comprehensive language courses for French speakers.
+Return ONLY valid JSON. No markdown fences, no code blocks. Follow the exact format requested by the user.
+The content must be in French, detailed (4-6 paragraphs per section), with examples in the target language.
+Escape all double quotes inside strings with backslash. Use \\n for paragraph breaks.""",
 }
 
 async def call_deepseek(prompt_type: str, user_message: str) -> dict:
@@ -64,7 +69,7 @@ async def call_deepseek(prompt_type: str, user_message: str) -> dict:
 
     system_prompt = SYSTEM_PROMPTS.get(prompt_type, SYSTEM_PROMPTS["generate_quiz"])
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
             DEEPSEEK_URL,
             headers={
@@ -78,7 +83,7 @@ async def call_deepseek(prompt_type: str, user_message: str) -> dict:
                     {"role": "user", "content": user_message},
                 ],
                 "temperature": 0.7,
-                "max_tokens": 1024,
+                "max_tokens": 4096,
             },
         )
 

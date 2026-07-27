@@ -1,6 +1,19 @@
 from fastapi import APIRouter
+import json, os
 
 router = APIRouter(prefix="/api/languages", tags=["languages"])
+
+_COURSES_CACHE = None
+def get_courses():
+    global _COURSES_CACHE
+    if _COURSES_CACHE is None:
+        path = "/app/langue_courses.json"
+        if os.path.exists(path):
+            with open(path) as f:
+                _COURSES_CACHE = json.load(f)
+        else:
+            _COURSES_CACHE = {}
+    return _COURSES_CACHE
 
 ALPHABETS = {
     "ru": {
@@ -308,8 +321,9 @@ async def get_alphabet(code: str):
 
 @router.get("/{code}/course")
 async def get_course(code: str):
+    courses = get_courses()
+    if code in courses:
+        return courses[code]
     if code in COURSES:
         return COURSES[code]
-    return {"title": f"Cours de {code}", "sections": [
-        {"title": "📖 Introduction", "content": "Cours en préparation."}
-    ]}
+    return {"title": f"Cours de {code}", "sections": []}
