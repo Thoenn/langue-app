@@ -748,7 +748,12 @@ async function loadLangGuide() {
 async function selectLang(code) {
   currentGuideLang = code;
   const info = LANG_INFO[code];
+
+  // Hide cards, show detail
+  document.getElementById('langCards').style.display = 'none';
   document.getElementById('langDetail').style.display = 'block';
+  document.getElementById('langDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   document.getElementById('langDetailTitle').innerHTML = `${info.flag} ${info.name} — Guide complet`;
 
   // Reset sub-tabs
@@ -758,7 +763,6 @@ async function selectLang(code) {
   document.getElementById('langCourse').style.display = 'none';
   document.getElementById('langVocab').style.display = 'none';
 
-  document.getElementById('langDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
   loadLangAlphabet(code);
   loadLangCourse(code);
   loadLangVocab(code);
@@ -766,7 +770,9 @@ async function selectLang(code) {
 
 function closeLangDetail() {
   document.getElementById('langDetail').style.display = 'none';
+  document.getElementById('langCards').style.display = 'grid';
   currentGuideLang = null;
+  document.getElementById('langCards').scrollIntoView({ behavior: 'smooth' });
 }
 
 function switchLangSub(sub) {
