@@ -24,7 +24,7 @@ function navigate(page) {
     case 'quiz': loadLanguages('quizLang'); loadCategories('quizCategory'); break;
     case 'progress': loadLanguages('progressLang'); loadProgress(); loadMistakes(); break;
     case 'stats': loadStats(); break;
-    case 'alphabet': loadLanguages('alphabetLang'); loadAlphabet(); break;
+    case 'guide': loadLangGuide(); break;
     case 'ai': loadLanguages('aiLang'); break;
   }
 }
@@ -700,41 +700,183 @@ async function sendChat() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// ======== ALPHABET & COURS ========
-async function loadAlphabet() {
-  const lang = document.getElementById('alphabetLang').value;
-  const alphaEl = document.getElementById('alphabetContent');
-  const courseEl = document.getElementById('courseContent');
-  alphaEl.innerHTML = '<div class="spinner"></div>';
-  courseEl.innerHTML = '';
+// ======== GUIDE DES LANGUES ========
+const LANG_INFO = {
+  en:{name:"English",emoji:"🇬🇧",difficulty:"★☆☆",diffClass:"easy",flag:"🇬🇧"},
+  la:{name:"Latin",emoji:"🏛️",difficulty:"★★☆",diffClass:"medium",flag:"🏛️"},
+  es:{name:"Español",emoji:"🇪🇸",difficulty:"★☆☆",diffClass:"easy",flag:"🇪🇸"},
+  de:{name:"Deutsch",emoji:"🇩🇪",difficulty:"★★★",diffClass:"hard",flag:"🇩🇪"},
+  it:{name:"Italiano",emoji:"🇮🇹",difficulty:"★☆☆",diffClass:"easy",flag:"🇮🇹"},
+  ru:{name:"Русский",emoji:"🇷🇺",difficulty:"★★★",diffClass:"hard",flag:"🇷🇺"},
+  zh:{name:"中文",emoji:"🇨🇳",difficulty:"★★★★",diffClass:"hard",flag:"🇨🇳"},
+  ja:{name:"日本語",emoji:"🇯🇵",difficulty:"★★★★",diffClass:"hard",flag:"🇯🇵"},
+  kr:{name:"한국어",emoji:"🇰🇷",difficulty:"★★☆",diffClass:"medium",flag:"🇰🇷"},
+  km:{name:"ភាសាខ្មែរ",emoji:"🇰🇭",difficulty:"★★★★",diffClass:"hard",flag:"🇰🇭"},
+};
 
-  const alpha = await api(`/languages/${lang}/alphabet`);
-  const course = await api(`/languages/${lang}/course`);
+let currentGuideLang = null;
 
-  if (alpha.note) {
-    alphaEl.innerHTML = `<div class="card"><p style="color:var(--text2);">${alpha.note}</p></div>`;
-  } else if (alpha.letters?.length) {
-    let html = `<div class="card"><h3 class="card-title">${alpha.name}</h3><p style="color:var(--text2);margin-bottom:12px;">${alpha.note || ''}</p>`;
-    if (alpha.tones) {
-      html += '<div style="margin-bottom:12px;"><strong>Tons :</strong></div>';
-      alpha.tones.forEach(t => { html += `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--bg3);"><span style="font-weight:700;color:var(--accent);min-width:100px;">${t.tone}</span><span style="color:var(--text2);">${t.sound}</span><span style="margin-left:auto;">${t.example || ''}</span></div>`; });
-    }
-    html += '<div style="max-height:400px;overflow-y:auto;margin-top:8px;">';
-    alpha.letters.forEach(l => {
-      html += `<div class="vocab-item"><div><span style="font-size:1.2rem;font-weight:700;color:var(--accent);">${l.letter}</span><span style="color:var(--text2);margin-left:8px;">[${l.sound}]</span></div><div style="font-size:0.85rem;color:var(--text2);text-align:right;">${l.example || ''}</div></div>`;
-    });
-    html += '</div></div>';
-    alphaEl.innerHTML = html;
+async function loadLangGuide() {
+  const cardsEl = document.getElementById('langCards');
+  cardsEl.innerHTML = '';
+  document.getElementById('langDetail').style.display = 'none';
+
+  const cats = await api('/vocabulary/categories');
+  const wordCount = cats.reduce((s,c) => s + (c.count || 0), 0);
+
+  for (const [code, info] of Object.entries(LANG_INFO)) {
+    const transCount = await api(`/vocabulary/words?language=${code}&per_page=1`).then(d => d.total).catch(() => 0);
+    const progress = await api(`/progress/overview?language=${code}`).catch(() => ({}));
+    const mastery = progress.mastered || 0;
+
+    cardsEl.innerHTML += `
+      <div class="card" style="cursor:pointer;text-align:center;" onclick="selectLang('${code}')">
+        <div style="font-size:2.5rem;margin-bottom:8px;">${info.flag}</div>
+        <div style="font-weight:700;font-size:1.1rem;">${info.name}</div>
+        <div style="font-size:0.8rem;color:var(--text2);margin:4px 0;">
+          ${info.difficulty}
+          <span class="vocab-category">${info.diffClass === 'easy' ? 'Facile' : info.diffClass === 'medium' ? 'Moyen' : 'Difficile'}</span>
+        </div>
+        <div style="font-size:0.85rem;color:var(--accent2);margin-top:4px;">${transCount} mots</div>
+        <div class="progress-bar" style="margin-top:8px;">
+          <div class="progress-fill ${mastery > 0 ? 'success' : ''}" style="width:${Math.min(100, (mastery || 0))}%;"></div>
+        </div>
+      </div>`;
+  }
+}
+
+async function selectLang(code) {
+  currentGuideLang = code;
+  const info = LANG_INFO[code];
+  document.getElementById('langDetail').style.display = 'block';
+  document.getElementById('langDetailTitle').innerHTML = `${info.flag} ${info.name} — Guide complet`;
+
+  // Reset sub-tabs
+  document.querySelectorAll('[data-subpage]').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-subpage="alphabet"]').classList.add('active');
+  document.getElementById('langAlphabet').style.display = 'block';
+  document.getElementById('langCourse').style.display = 'none';
+  document.getElementById('langVocab').style.display = 'none';
+
+  document.getElementById('langDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  loadLangAlphabet(code);
+  loadLangCourse(code);
+  loadLangVocab(code);
+}
+
+function closeLangDetail() {
+  document.getElementById('langDetail').style.display = 'none';
+  currentGuideLang = null;
+}
+
+function switchLangSub(sub) {
+  document.querySelectorAll('[data-subpage]').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-subpage="${sub}"]`).classList.add('active');
+  ['langAlphabet','langCourse','langVocab'].forEach(id => document.getElementById(id).style.display = 'none');
+  const map = { alphabet:'langAlphabet', course:'langCourse', vocab:'langVocab' };
+  document.getElementById(map[sub]).style.display = 'block';
+}
+
+async function loadLangAlphabet(code) {
+  const el = document.getElementById('langAlphabet');
+  const alpha = await api(`/languages/${code}/alphabet`);
+
+  if (!alpha.letters?.length && alpha.note) {
+    el.innerHTML = `<div class="card"><p style="color:var(--text2);">${alpha.note}</p></div>`;
+    return;
   }
 
-  if (course.sections?.length) {
-    let html = `<div class="card"><h3 class="card-title">${course.title}</h3>`;
-    course.sections.forEach(s => {
-      html += `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--bg3);"><strong>${s.title}</strong><p style="margin-top:4px;color:var(--text2);line-height:1.6;">${s.content}</p></div>`;
+  let html = `<div class="card"><h3 class="card-title">${alpha.name || 'Alphabet'}</h3>`;
+  if (alpha.note) html += `<p style="color:var(--text2);margin-bottom:12px;font-size:0.9rem;">${alpha.note}</p>`;
+
+  // Tones section (chinese)
+  if (alpha.tones) {
+    html += '<div class="card" style="background:var(--bg);margin-bottom:12px;"><strong style="display:block;margin-bottom:8px;">🎵 Les tons :</strong>';
+    alpha.tones.forEach(t => {
+      html += `<div style="display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--bg3);align-items:center;">
+        <span style="font-weight:700;color:var(--accent);min-width:90px;">${t.tone}</span>
+        <span style="color:var(--text2);flex:1;">${t.sound}</span>
+        <span style="font-size:0.9rem;">${t.example || ''}</span>
+      </div>`;
     });
     html += '</div>';
-    courseEl.innerHTML = html;
   }
+
+  // Alphabet letters grid
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;">';
+  alpha.letters.forEach(l => {
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:8px;">
+      <span style="font-size:1.3rem;font-weight:700;color:var(--accent);min-width:40px;">${l.letter}</span>
+      <span style="font-size:0.85rem;color:var(--text2);">[${l.sound}]</span>
+      <span style="font-size:0.8rem;color:var(--text2);margin-left:auto;text-align:right;">${l.example || ''}</span>
+    </div>`;
+  });
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+async function loadLangCourse(code) {
+  const el = document.getElementById('langCourse');
+  const course = await api(`/languages/${code}/course`);
+
+  if (!course.sections?.length) {
+    el.innerHTML = '<div class="card" style="color:var(--text2);">Cours en préparation.</div>';
+    return;
+  }
+
+  let html = `<div class="card"><h3 class="card-title" style="margin-bottom:16px;">${course.title}</h3>`;
+  course.sections.forEach((s, i) => {
+    const contentId = `sec_${code}_${i}`;
+    html += `
+      <div style="margin-bottom:8px;border-radius:8px;overflow:hidden;border:1px solid var(--bg3);">
+        <div onclick="toggleSection('${contentId}')" style="padding:12px 14px;background:var(--bg3);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+          <span>${s.title}</span>
+          <span id="icon_${contentId}" style="transition:transform 0.2s;">▶</span>
+        </div>
+        <div id="${contentId}" style="display:none;padding:14px;font-size:0.9rem;line-height:1.7;color:var(--text2);">${s.content.replace(/\n/g, '<br>')}</div>
+      </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  const icon = document.getElementById('icon_' + id);
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    icon.style.transform = 'rotate(90deg)';
+  } else {
+    el.style.display = 'none';
+    icon.style.transform = '';
+  }
+}
+
+async function loadLangVocab(code) {
+  const el = document.getElementById('langVocab');
+  const data = await api(`/vocabulary/words?language=${code}&per_page=50`);
+
+  if (!data.items?.length) {
+    el.innerHTML = '<div class="card" style="color:var(--text2);">Aucun mot dans cette langue.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="card" style="padding:0;">
+    <div style="padding:12px 14px;font-size:0.85rem;color:var(--text2);border-bottom:1px solid var(--bg3);">${data.total} mots — cliquez pour voir les traductions</div>
+    ${data.items.slice(0, 50).map(w => `
+      <div class="vocab-item" onclick="showWordDetail(${w.id})">
+        <div>
+          <div class="vocab-fr">${w.french}</div>
+          <div class="vocab-trans">${w.translation}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="speak-btn" onclick="event.stopPropagation();speak('${w.french.replace(/'/g, "\\'")}','fr')">🔊</button>
+          <button class="speak-btn" onclick="event.stopPropagation();speak('${(w.translation || '').replace(/'/g, "\\'")}','${code}')">🌍</button>
+        </div>
+      </div>
+    `).join('')}
+    ${data.total > 50 ? `<div style="padding:12px;text-align:center;font-size:0.85rem;color:var(--text2);">+ ${data.total - 50} mots supplémentaires dans l'onglet Vocabulaire</div>` : ''}
+  </div>`;
 }
 
 // ======== INIT ========

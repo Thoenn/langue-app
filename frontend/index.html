@@ -19,7 +19,7 @@
   <button class="nav-btn" data-page="quiz" onclick="navigate('quiz')">🎯 Quiz</button>
   <button class="nav-btn" data-page="progress" onclick="navigate('progress')">📈 Progression</button>
   <button class="nav-btn" data-page="stats" onclick="navigate('stats')">📊 Stats</button>
-  <button class="nav-btn" data-page="alphabet" onclick="navigate('alphabet')">🔤 Alphabet</button>
+  <button class="nav-btn" data-page="guide" onclick="navigate('guide')">🌍 Guide des langues</button>
   <button class="nav-btn" data-page="ai" onclick="navigate('ai')">🤖 IA</button>
 </nav>
 
@@ -107,16 +107,30 @@
   <div id="weaknesses"></div>
 </div>
 
-<div class="page" id="page-alphabet">
-  <h2 class="page-title">🔤 Alphabet & <span>Cours</span></h2>
-  <div class="card">
-    <div class="form-group">
-      <label>Langue</label>
-      <select id="alphabetLang" onchange="loadAlphabet()"></select>
+<div class="page" id="page-guide">
+  <h2 class="page-title">🌍 Guide des <span>langues</span></h2>
+
+  <!-- Language cards grid -->
+  <div class="grid-4" id="langCards"></div>
+
+  <!-- Language detail (shown when one is selected) -->
+  <div id="langDetail" style="display:none;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <button class="btn btn-sm btn-secondary" onclick="closeLangDetail()">← Retour</button>
+      <h3 id="langDetailTitle" style="margin:0;"></h3>
     </div>
+
+    <!-- Sub-navigation tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:12px;overflow-x:auto;">
+      <button class="nav-btn active" data-subpage="alphabet" onclick="switchLangSub('alphabet')">🔤 Alphabet</button>
+      <button class="nav-btn" data-subpage="course" onclick="switchLangSub('course')">📚 Cours complet</button>
+      <button class="nav-btn" data-subpage="vocab" onclick="switchLangSub('vocab')">📖 Vocabulaire</button>
+    </div>
+
+    <div id="langAlphabet"></div>
+    <div id="langCourse" style="display:none;"></div>
+    <div id="langVocab" style="display:none;"></div>
   </div>
-  <div id="alphabetContent"></div>
-  <div id="courseContent" style="margin-top:16px;"></div>
 </div>
 
 <div class="page" id="page-ai">
