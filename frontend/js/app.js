@@ -815,6 +815,28 @@ async function loadLangAlphabet(code) {
   el.innerHTML = html;
 }
 
+function formatCourseContent(text) {
+  return text
+    .split('\n')
+    .filter(p => p.trim())
+    .map(p => {
+      let formatted = p.trim();
+      // Bold key terms (word in language + translation in quotes)
+      formatted = formatted.replace(/'([^']+)'/g, '<span style="color:var(--accent2);font-style:italic;">\'$1\'</span>');
+      formatted = formatted.replace(/"([^"]+)"/g, '<span style="color:var(--accent);font-weight:600;">"$1"</span>');
+      // Bullet points
+      if (formatted.startsWith('- ') || formatted.startsWith('• ')) {
+        return `<li style="margin-left:16px;margin-bottom:6px;">${formatted.substring(2)}</li>`;
+      }
+      if (/^\d+\.\s/.test(formatted)) {
+        return `<li style="margin-left:16px;margin-bottom:6px;list-style:decimal;">${formatted.replace(/^\d+\.\s/, '')}</li>`;
+      }
+      // Regular paragraph
+      return `<p style="margin-bottom:10px;line-height:1.7;">${formatted}</p>`;
+    })
+    .join('\n');
+}
+
 async function loadLangCourse(code) {
   const el = document.getElementById('langCourse');
   const course = await api(`/languages/${code}/course`);
@@ -824,20 +846,24 @@ async function loadLangCourse(code) {
     return;
   }
 
-  let html = `<div class="card"><h3 class="card-title" style="margin-bottom:16px;">${course.title}</h3>`;
+  let html = `<div class="card"><h3 class="card-title" style="margin-bottom:16px;font-size:1.2rem;">${course.title}</h3>`;
   course.sections.forEach((s, i) => {
     const contentId = `sec_${code}_${i}`;
+    const formatted = formatCourseContent(s.content);
     html += `
-      <div style="margin-bottom:8px;border-radius:8px;overflow:hidden;border:1px solid var(--bg3);">
-        <div onclick="toggleSection('${contentId}')" style="padding:12px 14px;background:var(--bg3);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+      <div style="margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid var(--bg3);">
+        <div onclick="toggleSection('${contentId}')" style="padding:14px 16px;background:var(--bg3);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.95rem;">
           <span>${s.title}</span>
-          <span id="icon_${contentId}" style="transition:transform 0.2s;">▶</span>
+          <span id="icon_${contentId}" style="transition:transform 0.2s;font-size:0.8rem;color:var(--accent);">▶</span>
         </div>
-        <div id="${contentId}" style="display:none;padding:14px;font-size:0.9rem;line-height:1.7;color:var(--text2);">${s.content.replace(/\n/g, '<br>')}</div>
+        <div id="${contentId}" style="display:none;padding:16px;font-size:0.9rem;color:var(--text2);">${formatted}</div>
       </div>`;
   });
   html += '</div>';
   el.innerHTML = html;
+
+  // Auto-open first section
+  setTimeout(() => toggleSection(`sec_${code}_0`), 100);
 }
 
 function toggleSection(id) {

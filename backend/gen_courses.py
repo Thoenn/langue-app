@@ -80,9 +80,16 @@ async def generate(code, name, focus):
     )
     result = await call_deepseek("generate_course", prompt)
     if isinstance(result, dict) and "sections" in result:
+        for sec in result["sections"]:
+            if "content" in sec:
+                sec["content"] = re.sub(r'(?<=[.!?])\s+(?=[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ])', '\n', sec["content"])
         return result
     if isinstance(result, dict) and "raw" in result:
-        return extract_from_raw(result["raw"])
+        parsed = extract_from_raw(result["raw"])
+        for sec in parsed.get("sections", []):
+            if "content" in sec:
+                sec["content"] = re.sub(r'(?<=[.!?])\s+(?=[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ])', '\n', sec["content"])
+        return parsed
     return result
 
 async def main():
