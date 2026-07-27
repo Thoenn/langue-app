@@ -19,6 +19,7 @@
   <button class="nav-btn" data-page="quiz" onclick="navigate('quiz')">🎯 Quiz</button>
   <button class="nav-btn" data-page="progress" onclick="navigate('progress')">📈 Progression</button>
   <button class="nav-btn" data-page="stats" onclick="navigate('stats')">📊 Stats</button>
+  <button class="nav-btn" data-page="alphabet" onclick="navigate('alphabet')">🔤 Alphabet</button>
   <button class="nav-btn" data-page="ai" onclick="navigate('ai')">🤖 IA</button>
 </nav>
 
@@ -104,6 +105,18 @@
   <div id="statsDashboard"></div>
   <div id="statsWeekly"></div>
   <div id="weaknesses"></div>
+</div>
+
+<div class="page" id="page-alphabet">
+  <h2 class="page-title">🔤 Alphabet & <span>Cours</span></h2>
+  <div class="card">
+    <div class="form-group">
+      <label>Langue</label>
+      <select id="alphabetLang" onchange="loadAlphabet()"></select>
+    </div>
+  </div>
+  <div id="alphabetContent"></div>
+  <div id="courseContent" style="margin-top:16px;"></div>
 </div>
 
 <div class="page" id="page-ai">

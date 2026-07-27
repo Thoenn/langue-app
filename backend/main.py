@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import init_db
-from routers import vocabulary, quiz, progress, stats, ai
+from routers import vocabulary, quiz, progress, stats, ai, languages
 import os
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.include_router(quiz.router)
 app.include_router(progress.router)
 app.include_router(stats.router)
 app.include_router(ai.router)
+app.include_router(languages.router)
 
 try:
     app.mount("/", StaticFiles(directory="/app/frontend", html=True), name="frontend")

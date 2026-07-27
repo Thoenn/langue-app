@@ -24,6 +24,7 @@ function navigate(page) {
     case 'quiz': loadLanguages('quizLang'); loadCategories('quizCategory'); break;
     case 'progress': loadLanguages('progressLang'); loadProgress(); loadMistakes(); break;
     case 'stats': loadStats(); break;
+    case 'alphabet': loadLanguages('alphabetLang'); loadAlphabet(); break;
     case 'ai': loadLanguages('aiLang'); break;
   }
 }
@@ -697,6 +698,43 @@ async function sendChat() {
   const response = data.response?.explanation || data.response?.raw || JSON.stringify(data.response || data, null, 2);
   messagesEl.innerHTML += `<div class="chat-msg ai">${response}</div>`;
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// ======== ALPHABET & COURS ========
+async function loadAlphabet() {
+  const lang = document.getElementById('alphabetLang').value;
+  const alphaEl = document.getElementById('alphabetContent');
+  const courseEl = document.getElementById('courseContent');
+  alphaEl.innerHTML = '<div class="spinner"></div>';
+  courseEl.innerHTML = '';
+
+  const alpha = await api(`/languages/${lang}/alphabet`);
+  const course = await api(`/languages/${lang}/course`);
+
+  if (alpha.note) {
+    alphaEl.innerHTML = `<div class="card"><p style="color:var(--text2);">${alpha.note}</p></div>`;
+  } else if (alpha.letters?.length) {
+    let html = `<div class="card"><h3 class="card-title">${alpha.name}</h3><p style="color:var(--text2);margin-bottom:12px;">${alpha.note || ''}</p>`;
+    if (alpha.tones) {
+      html += '<div style="margin-bottom:12px;"><strong>Tons :</strong></div>';
+      alpha.tones.forEach(t => { html += `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--bg3);"><span style="font-weight:700;color:var(--accent);min-width:100px;">${t.tone}</span><span style="color:var(--text2);">${t.sound}</span><span style="margin-left:auto;">${t.example || ''}</span></div>`; });
+    }
+    html += '<div style="max-height:400px;overflow-y:auto;margin-top:8px;">';
+    alpha.letters.forEach(l => {
+      html += `<div class="vocab-item"><div><span style="font-size:1.2rem;font-weight:700;color:var(--accent);">${l.letter}</span><span style="color:var(--text2);margin-left:8px;">[${l.sound}]</span></div><div style="font-size:0.85rem;color:var(--text2);text-align:right;">${l.example || ''}</div></div>`;
+    });
+    html += '</div></div>';
+    alphaEl.innerHTML = html;
+  }
+
+  if (course.sections?.length) {
+    let html = `<div class="card"><h3 class="card-title">${course.title}</h3>`;
+    course.sections.forEach(s => {
+      html += `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--bg3);"><strong>${s.title}</strong><p style="margin-top:4px;color:var(--text2);line-height:1.6;">${s.content}</p></div>`;
+    });
+    html += '</div>';
+    courseEl.innerHTML = html;
+  }
 }
 
 // ======== INIT ========
