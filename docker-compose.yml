@@ -1,0 +1,10 @@
+services:
+  backend:
+    build: .
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Langue App — Michel</title>
+<link rel="stylesheet" href="/langue/css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Langue<span>App</span></h1>
+  <button class="menu-toggle" onclick="toggleMenu()" aria-label="Menu">☰</button>
+</header>
+
+<nav class="app-nav" id="mainNav">
+  <button class="nav-btn active" data-page="dashboard" onclick="navigate('dashboard')">📊 Tableau</button>
+  <button class="nav-btn" data-page="vocabulary" onclick="navigate('vocabulary')">📖 Vocabulaire</button>
+  <button class="nav-btn" data-page="quiz" onclick="navigate('quiz')">🎯 Quiz</button>
+  <button class="nav-btn" data-page="progress" onclick="navigate('progress')">📈 Progression</button>
+  <button class="nav-btn" data-page="stats" onclick="navigate('stats')">📊 Stats</button>
+  <button class="nav-btn" data-page="ai" onclick="navigate('ai')">🤖 IA</button>
+</nav>
+
+<main class="app-main">
+
+<div class="page active" id="page-dashboard">
+  <h2 class="page-title">📊 Tableau de <span>bord</span></h2>
+  <div id="dashboardContent"></div>
+</div>
+
+<div class="page" id="page-vocabulary">
+  <h2 class="page-title">📖 Mon <span>vocabulaire</span></h2>
+  <div class="card">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Langue cible</label>
+        <select id="vocabLang" onchange="loadVocabulary()"></select>
+      </div>
+      <div class="form-group">
+        <label>Catégorie</label>
+        <select id="vocabCategory" onchange="loadVocabulary()">
+          <option value="">Toutes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Recherche</label>
+        <input type="search" id="vocabSearch" placeholder="Rechercher un mot…" oninput="debounceSearch()">
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn btn-success btn-sm" onclick="showAddWord()">➕ Ajouter un mot</button>
+    </div>
+  </div>
+  <div id="vocabList"></div>
+</div>
+
+<div class="page" id="page-quiz">
+  <h2 class="page-title">🎯 Quiz <span>QCM</span></h2>
+  <div class="card" id="quizConfig">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Langue</label>
+        <select id="quizLang" onchange="loadQuizConfig()"></select>
+      </div>
+      <div class="form-group">
+        <label>Catégorie</label>
+        <select id="quizCategory">
+          <option value="">Toutes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nombre de questions</label>
+        <select id="quizCount"><option>5</option><option>10</option><option selected>15</option><option>20</option></select>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="startQuiz()">🎯 Commencer le quiz</button>
+  </div>
+  <div id="quizContent"></div>
+</div>
+
+<div class="page" id="page-progress">
+  <h2 class="page-title">📈 Ma <span>progression</span></h2>
+  <div class="card">
+    <div class="form-group">
+      <label>Langue</label>
+      <select id="progressLang" onchange="loadProgress()"></select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-secondary" onclick="loadProgress('all')" data-status="all">Tout</button>
+      <button class="btn btn-sm btn-secondary" onclick="loadProgress('mastered')" data-status="mastered">Maîtrisé</button>
+      <button class="btn btn-sm btn-secondary" onclick="loadProgress('learning')" data-status="learning">En cours</button>
+      <button class="btn btn-sm btn-secondary" onclick="loadProgress('to_review')" data-status="to_review">À réviser</button>
+    </div>
+  </div>
+  <div id="progressOverview"></div>
+  <div id="progressList"></div>
+  <h3 style="margin-top:24px;">❌ Erreurs fréquentes</h3>
+  <div id="mistakesList"></div>
+</div>
+
+<div class="page" id="page-stats">
+  <h2 class="page-title">📊 <span>Statistiques</span></h2>
+  <div id="statsDashboard"></div>
+  <div id="statsWeekly"></div>
+  <div id="weaknesses"></div>
+</div>
+
+<div class="page" id="page-ai">
+  <h2 class="page-title">🤖 Assistant <span>IA</span></h2>
+  <p class="card" style="color:var(--text2);font-size:0.9rem;">
+    L'assistant IA utilise DeepSeek Flash pour vous aider à apprendre.
+    Configurez votre clé API DeepSeek dans les variables d'environnement (DEEPSEEK_API_KEY).
+  </p>
+  <div class="card">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Action</label>
+        <select id="aiAction">
+          <option value="explain">Expliquer un mot</option>
+          <option value="sentences">Générer des phrases</option>
+          <option value="phonetics">Phonétique & prononciation</option>
+          <option value="translate">Traduction contextuelle</option>
+          <option value="generate_quiz">Générer un QCM</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Langue</label>
+        <select id="aiLang"></select>
+      </div>
+      <div class="form-group">
+        <label>Mot / Expression</label>
+        <input type="text" id="aiWord" placeholder="Entrez un mot en français…">
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="callAI()">🤖 Demander à l'IA</button>
+    <div id="aiResult" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3 class="card-title">💬 Chat IA</h3>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg ai">👋 Salut ! Je suis ton assistant pour apprendre les langues. Pose-moi des questions sur le vocabulaire, la grammaire, ou demande-moi de générer des exercices !</div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Ta question…" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn btn-primary" onclick="sendChat()">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="wordModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 id="modalWord"></h2>
+    <div id="modalTranslations"></div>
+    <div id="modalExamples" style="margin-top:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-primary" onclick="speak(document.getElementById('modalWord').textContent, 'fr')">🔊 Écouter</button>
+      <button class="btn btn-secondary" onclick="showEditWord(parseInt(this.dataset.id))" id="modalEditBtn">✏️ Modifier</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal"></div>
+
+</main>
+
+<script src="/langue/js/app.js"></script>
+</body>
+</html>
