@@ -815,6 +815,24 @@ async function loadLangAlphabet(code) {
   el.innerHTML = html;
 }
 
+function formatText(text) {
+  const fragment = document.createDocumentFragment();
+  // Split by quoted segments: 'text' or "text"
+  const parts = text.split(/(\'[^\']*\'|"[^"]*")/);
+  parts.forEach(part => {
+    if (!part) return;
+    if ((part.startsWith("'") && part.endsWith("'")) || (part.startsWith('"') && part.endsWith('"'))) {
+      const span = document.createElement('span');
+      span.textContent = part;
+      span.style.cssText = 'color:var(--accent2);font-weight:600;font-style:italic;';
+      fragment.appendChild(span);
+    } else {
+      fragment.appendChild(document.createTextNode(part));
+    }
+  });
+  return fragment;
+}
+
 async function loadLangCourse(code) {
   const el = document.getElementById('langCourse');
   const course = await api(`/languages/${code}/course`);
@@ -867,13 +885,17 @@ async function loadLangCourse(code) {
       let line = p.trim();
       if (line.startsWith('- ') || line.startsWith('• ')) {
         const li = document.createElement('div');
-        li.style.cssText = 'padding-left:16px;margin-bottom:6px;';
-        li.textContent = '• ' + line.substring(2);
+        li.style.cssText = 'padding-left:16px;margin-bottom:6px;color:var(--text2);';
+        const bullet = document.createElement('span');
+        bullet.textContent = '• ';
+        bullet.style.cssText = 'color:var(--accent);font-weight:700;';
+        li.appendChild(bullet);
+        li.appendChild(formatText(line.substring(2)));
         body.appendChild(li);
       } else {
         const pEl = document.createElement('p');
-        pEl.style.cssText = 'margin-bottom:10px;';
-        pEl.textContent = line;
+        pEl.style.cssText = 'margin-bottom:10px;line-height:1.7;';
+        pEl.appendChild(formatText(line));
         body.appendChild(pEl);
       }
     });
