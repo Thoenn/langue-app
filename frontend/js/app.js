@@ -815,28 +815,6 @@ async function loadLangAlphabet(code) {
   el.innerHTML = html;
 }
 
-function formatCourseContent(text) {
-  return text
-    .split('\n')
-    .filter(p => p.trim())
-    .map(p => {
-      let formatted = p.trim();
-      // Bold key terms (word in language + translation in quotes)
-      formatted = formatted.replace(/'([^']+)'/g, '<span style="color:var(--accent2);font-style:italic;">\'$1\'</span>');
-      formatted = formatted.replace(/"([^"]+)"/g, '<span style="color:var(--accent);font-weight:600;">"$1"</span>');
-      // Bullet points
-      if (formatted.startsWith('- ') || formatted.startsWith('• ')) {
-        return `<li style="margin-left:16px;margin-bottom:6px;">${formatted.substring(2)}</li>`;
-      }
-      if (/^\d+\.\s/.test(formatted)) {
-        return `<li style="margin-left:16px;margin-bottom:6px;list-style:decimal;">${formatted.replace(/^\d+\.\s/, '')}</li>`;
-      }
-      // Regular paragraph
-      return `<p style="margin-bottom:10px;line-height:1.7;">${formatted}</p>`;
-    })
-    .join('\n');
-}
-
 async function loadLangCourse(code) {
   const el = document.getElementById('langCourse');
   const course = await api(`/languages/${code}/course`);
@@ -846,21 +824,66 @@ async function loadLangCourse(code) {
     return;
   }
 
-  let html = `<div class="card"><h3 class="card-title" style="margin-bottom:16px;font-size:1.2rem;">${course.title}</h3>`;
+  // Build DOM directly to avoid any HTML escaping issues
+  const container = document.createElement('div');
+  container.className = 'card';
+
+  const title = document.createElement('h3');
+  title.className = 'card-title';
+  title.style.cssText = 'margin-bottom:16px;font-size:1.2rem;';
+  title.textContent = course.title;
+  container.appendChild(title);
+
   course.sections.forEach((s, i) => {
-    const contentId = `sec_${code}_${i}`;
-    const formatted = formatCourseContent(s.content);
-    html += `
-      <div style="margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid var(--bg3);">
-        <div onclick="toggleSection('${contentId}')" style="padding:14px 16px;background:var(--bg3);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.95rem;">
-          <span>${s.title}</span>
-          <span id="icon_${contentId}" style="transition:transform 0.2s;font-size:0.8rem;color:var(--accent);">▶</span>
-        </div>
-        <div id="${contentId}" style="display:none;padding:16px;font-size:0.9rem;color:var(--text2);">${formatted}</div>
-      </div>`;
+    const sectionId = `sec_${code}_${i}`;
+    const iconId = `icon_${code}_${i}`;
+
+    const block = document.createElement('div');
+    block.style.cssText = 'margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid var(--bg3);';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:14px 16px;background:var(--bg3);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.95rem;';
+    header.onclick = () => toggleSection(sectionId);
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = s.title;
+    header.appendChild(titleSpan);
+
+    const icon = document.createElement('span');
+    icon.id = iconId;
+    icon.style.cssText = 'transition:transform 0.2s;font-size:0.8rem;color:var(--accent);';
+    icon.textContent = '▶';
+    header.appendChild(icon);
+
+    block.appendChild(header);
+
+    const body = document.createElement('div');
+    body.id = sectionId;
+    body.style.cssText = 'display:none;padding:16px;font-size:0.9rem;color:var(--text2);line-height:1.7;';
+
+    // Split content into paragraphs
+    const paragraphs = s.content.split('\n').filter(p => p.trim());
+    paragraphs.forEach(p => {
+      let line = p.trim();
+      if (line.startsWith('- ') || line.startsWith('• ')) {
+        const li = document.createElement('div');
+        li.style.cssText = 'padding-left:16px;margin-bottom:6px;';
+        li.textContent = '• ' + line.substring(2);
+        body.appendChild(li);
+      } else {
+        const pEl = document.createElement('p');
+        pEl.style.cssText = 'margin-bottom:10px;';
+        pEl.textContent = line;
+        body.appendChild(pEl);
+      }
+    });
+
+    block.appendChild(body);
+    container.appendChild(block);
   });
-  html += '</div>';
-  el.innerHTML = html;
+
+  el.innerHTML = '';
+  el.appendChild(container);
 
   // Auto-open first section
   setTimeout(() => toggleSection(`sec_${code}_0`), 100);
