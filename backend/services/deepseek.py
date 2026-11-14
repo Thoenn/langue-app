@@ -1,7 +1,10 @@
 import httpx
 from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL
 
-DEEPSEEK_URL = "https://api.deepseek.com/v1/chat/completions"
+# Tous les appels passent par la passerelle locale ai-gateway (port 8115) : elle relaie vers
+# DeepSeek et enregistre le coût réel par application.
+# 172.24.0.1 = passerelle du réseau Docker de ce conteneur.
+DEEPSEEK_URL = "http://172.24.0.1:8115/v1/chat/completions"
 
 SYSTEM_PROMPTS = {
     "generate_quiz": """You are a language teaching assistant. Generate a multiple-choice question (QCM) for language learning.
