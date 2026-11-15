@@ -20,7 +20,7 @@ function navigate(page) {
 
   switch(page) {
     case 'dashboard': loadDashboard(); break;
-    case 'vocabulary': loadLanguages('vocabLang'); loadCategories('vocabCategory'); loadVocabulary(); break;
+    case 'vocabulary': loadLanguages('vocabLang'); loadCategories('vocabCategory'); loadCollections(); loadVocabulary(); break;
     case 'phrases': loadLanguages('phrasesLang'); loadPhrases(); break;
     case 'quiz': loadLanguages('quizLang'); loadCategories('quizCategory'); break;
     case 'progress': loadLanguages('progressLang'); loadProgress(); loadMistakes(); break;
@@ -207,6 +207,11 @@ async function loadVocabulary() {
   if (search) params.set('search', search);
   const kind = document.getElementById('vocabKind')?.value;
   if (kind) params.set('kind', kind);
+  const tri = document.getElementById('vocabSort')?.value || 'recent';
+  params.set('sort', tri);
+  if (favorisSeulement) params.set('favorite', '1');
+  const col = document.getElementById('vocabCollection')?.value;
+  if (col) params.set('collection', col);
 
   const data = await api(`/vocabulary/words?${params}`);
   if (data.error) { el.innerHTML = `<div class="card">Erreur: ${data.error}</div>`; return; }
@@ -216,18 +221,26 @@ async function loadVocabulary() {
     return;
   }
 
-  el.innerHTML = `<div style="font-size:0.85rem;color:var(--text2);margin-bottom:8px;">${data.total} mots</div>
+  const triLbl = { recent: 'du plus récent au plus ancien', modifie: 'des dernières modifications',
+                   alpha: 'par ordre alphabétique', favoris: 'les importants d\'abord' }[tri] || '';
+  el.innerHTML = `<div style="font-size:0.85rem;color:var(--text2);margin-bottom:8px;">
+      ${data.total} entrée${data.total > 1 ? 's' : ''} — ${triLbl}${favorisSeulement ? ' · ⭐ seulement' : ''}</div>
     <div class="card" style="padding:0;">${data.items.map(w => `
       <div class="vocab-item" onclick="showWordDetail(${w.id})">
-        <div>
+        <div style="min-width:0;">
           <div class="vocab-fr">${w.french}</div>
           <div class="vocab-trans">${w.translation}</div>
           ${w.phonetic ? `<div class="vocab-phonetic">${w.phonetic}</div>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          ${w.collection_ids?.length ? `<span title="collection" style="font-size:0.8rem;">📁${w.collection_ids.length}</span>` : ''}
           ${w.category_emoji ? `<span>${w.category_emoji}</span>` : ''}
           <button class="speak-btn" onclick="event.stopPropagation();speak('${w.french.replace(/'/g, "\\'")}','fr')">🔊</button>
           ${w.translation ? `<button class="speak-btn" onclick="event.stopPropagation();speak('${w.translation.replace(/'/g, "\\'")}','${lang}')">🌍</button>` : ''}
+          <button class="speak-btn" title="important à connaître" onclick="toggleFavori(${w.id}, event)" style="${w.favorite ? '' : 'opacity:.35;'}">${w.favorite ? '⭐' : '☆'}</button>
+          <button class="speak-btn" title="ranger dans une collection" onclick="basculerDansCollection(${w.id}, event)">📁</button>
+          <button class="speak-btn" title="modifier" onclick="event.stopPropagation();showEditWord(${w.id})">✏️</button>
+          <button class="speak-btn" title="supprimer" onclick="event.stopPropagation();deleteWord(${w.id}, '${(w.french || '').replace(/'/g, "\\'")}')">🗑️</button>
         </div>
       </div>
     `).join('')}</div>`;
@@ -236,6 +249,79 @@ async function loadVocabulary() {
 function debounceSearch() {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(loadVocabulary, 300);
+}
+
+// ======== TRI, FAVORIS, COLLECTIONS ========
+let favorisSeulement = false;
+
+async function loadCollections() {
+  const sel = document.getElementById('vocabCollection');
+  if (!sel) return;
+  const data = await api('/vocabulary/collections');
+  if (!Array.isArray(data)) return;
+  const garde = sel.value;
+  sel.innerHTML = '<option value="">Toutes</option>' +
+    data.map(c => `<option value="${c.id}">${c.emoji || '📁'} ${c.name} (${c.count})</option>`).join('');
+  sel.value = garde;
+  const btn = document.getElementById('vocabDelColBtn');
+  if (btn) btn.style.display = sel.value ? 'inline-flex' : 'none';
+}
+
+function toggleFavorisOnly() {
+  favorisSeulement = !favorisSeulement;
+  const b = document.getElementById('vocabFavBtn');
+  if (b) {
+    b.classList.toggle('btn-primary', favorisSeulement);
+    b.classList.toggle('btn-secondary', !favorisSeulement);
+    b.textContent = favorisSeulement ? '⭐ À connaître seulement' : '⭐ À connaître';
+  }
+  loadVocabulary();
+}
+
+async function toggleFavori(wordId, ev) {
+  if (ev) ev.stopPropagation();
+  const r = await api(`/vocabulary/words/${wordId}/favorite`, { method: 'POST' });
+  if (r.error) return;
+  loadVocabulary();
+}
+
+async function creerCollection() {
+  const nom = prompt('Nom de la collection (ex. « entretien », « session magistrats ») :');
+  if (!nom || !nom.trim()) return;
+  const r = await api(`/vocabulary/collections?name=${encodeURIComponent(nom.trim())}`, { method: 'POST' });
+  if (r.error) return alert(r.error);
+  await loadCollections();
+  loadVocabulary();
+}
+
+async function supprimerCollection() {
+  const sel = document.getElementById('vocabCollection');
+  if (!sel?.value) return;
+  const nom = sel.options[sel.selectedIndex].textContent;
+  if (!confirm(`Supprimer la collection « ${nom} » ?\nLes entrées ne sont pas supprimées, seulement le rangement.`)) return;
+  await api(`/vocabulary/collections/${sel.value}`, { method: 'DELETE' });
+  sel.value = '';
+  await loadCollections();
+  loadVocabulary();
+}
+
+/** Ajoute ou retire une entrée de la collection choisie dans le sélecteur. */
+async function basculerDansCollection(wordId, ev) {
+  if (ev) ev.stopPropagation();
+  const sel = document.getElementById('vocabulary') && document.getElementById('vocabCollection');
+  let cid = sel?.value;
+  if (!cid) {
+    const nom = prompt('Dans quelle collection ranger cette entrée ?');
+    if (!nom || !nom.trim()) return;
+    const c = await api(`/vocabulary/collections?name=${encodeURIComponent(nom.trim())}`, { method: 'POST' });
+    if (c.error) return;
+    cid = c.id;
+    await loadCollections();
+  }
+  await api(`/vocabulary/collections/${cid}/words/${wordId}`, { method: 'POST' });
+  const sel2 = document.getElementById('vocabCollection');
+  if (sel2) sel2.value = cid;
+  loadVocabulary();
 }
 
 // ======== ADMIN: ADD / EDIT / DELETE ========
@@ -306,7 +392,11 @@ async function showEditWord(wordId) {
       <div style="flex:0 0 40px;font-weight:700;color:var(--accent);padding-top:10px;">${code}</div>
       <div style="flex:3;"><input type="text" id="editTrans_${code}" value="${(t?.translation || '').replace(/"/g,'&quot;')}" placeholder="Traduction"></div>
       <div style="flex:2;"><input type="text" id="editPhon_${code}" value="${(t?.phonetic || '').replace(/"/g,'&quot;')}" placeholder="Phonétique"></div>
-    </div>`;
+    </div>
+    ${t ? `<div class="form-row" style="margin-bottom:8px;">
+      <div style="flex:0 0 40px;"></div>
+      <div style="flex:1;"><input type="text" id="editNotes_${code}" value="${(t.notes || '').replace(/"/g,'&quot;')}" placeholder="Note : nuance, explication, piège…"></div>
+    </div>` : ''}`;
   }
 
   document.getElementById('editModal').innerHTML = `
@@ -315,6 +405,10 @@ async function showEditWord(wordId) {
       <h2>✏️ Modifier le mot</h2>
       <div class="form-group"><label>Mot français</label><input type="text" id="editFrench" value="${data.french.replace(/"/g,'&quot;')}"></div>
       <div class="form-group"><label>Catégorie</label><select id="editCategory">${catOpts}</select></div>
+      <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="editFavorite" ${data.favorite ? 'checked' : ''} style="width:auto;">
+        <label for="editFavorite" style="margin:0;">⭐ Important à connaître</label>
+      </div>
       <h3 style="margin-top:12px;margin-bottom:8px;">Traductions</h3>
       ${transHtml}
       <div style="display:flex;gap:8px;margin-top:16px;">
@@ -336,13 +430,27 @@ async function saveEditWord() {
   if (!french) return alert('Le mot français est requis');
   const category = document.getElementById('editCategory').value;
 
+  // On repart des valeurs existantes : sans ça, corriger une faute dans une phrase
+  // effaçait sa nuance et son exemple (notes:'' envoyé au serveur).
+  const avant = await api(`/vocabulary/words/${editingWordId}`);
+  const notesAvant = {};
+  for (const [code, t] of Object.entries(avant.translations || {})) notesAvant[code] = t;
+
   const translations = {};
   const allLangs = ['en','la','es','de','it','ru','zh','ja','kr','km'];
   for (const code of allLangs) {
     const trans = document.getElementById(`editTrans_${code}`)?.value?.trim();
     const phon = document.getElementById(`editPhon_${code}`)?.value?.trim();
     if (trans) {
-      translations[code] = { translation: trans, phonetic: phon || '', example_fr: '', example_target: '', notes: '' };
+      const avantT = notesAvant[code] || {};
+      const noteSaisie = document.getElementById(`editNotes_${code}`)?.value;
+      translations[code] = {
+        translation: trans,
+        phonetic: phon || '',
+        example_fr: avantT.example_fr || '',
+        example_target: avantT.example_target || '',
+        notes: noteSaisie !== undefined ? noteSaisie : (avantT.notes || ''),
+      };
     }
   }
 
@@ -351,6 +459,10 @@ async function saveEditWord() {
       method: 'PUT',
       body: JSON.stringify({ french, category, translations }),
     });
+    const fav = document.getElementById('editFavorite');
+    if (fav) {
+      await api(`/vocabulary/words/${editingWordId}/favorite?value=${fav.checked ? 1 : 0}`, { method: 'POST' });
+    }
     closeEdit();
     loadVocabulary();
   } else {

@@ -56,11 +56,29 @@
       </div>
       <div class="form-group">
         <label>Recherche</label>
-        <input type="search" id="vocabSearch" placeholder="Rechercher un mot…" oninput="debounceSearch()">
+        <input type="search" id="vocabSearch" placeholder="Mot, traduction ou note…" oninput="debounceSearch()">
+      </div>
+      <div class="form-group">
+        <label>Tri</label>
+        <select id="vocabSort" onchange="loadVocabulary()">
+          <option value="recent">🆕 Récemment ajouté</option>
+          <option value="modifie">✏️ Récemment modifié</option>
+          <option value="alpha">🔤 Alphabétique</option>
+          <option value="favoris">⭐ Importants d'abord</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Collection</label>
+        <select id="vocabCollection" onchange="loadVocabulary()">
+          <option value="">Toutes</option>
+        </select>
       </div>
     </div>
-    <div style="margin-top:8px;">
-      <button class="btn btn-success btn-sm" onclick="showAddWord()">➕ Ajouter un mot</button>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-success btn-sm" onclick="showAddWord()">➕ Ajouter</button>
+      <button class="btn btn-secondary btn-sm" id="vocabFavBtn" onclick="toggleFavorisOnly()">⭐ À connaître</button>
+      <button class="btn btn-secondary btn-sm" onclick="creerCollection()">📁 Nouvelle collection</button>
+      <button class="btn btn-secondary btn-sm" id="vocabDelColBtn" onclick="supprimerCollection()" style="display:none;">🗑️ Supprimer la collection</button>
     </div>
   </div>
   <div id="vocabList"></div>
