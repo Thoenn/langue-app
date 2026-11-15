@@ -16,6 +16,7 @@
 <nav class="app-nav" id="mainNav">
   <button class="nav-btn active" data-page="dashboard" onclick="navigate('dashboard')">📊 Tableau</button>
   <button class="nav-btn" data-page="vocabulary" onclick="navigate('vocabulary')">📖 Vocabulaire</button>
+  <button class="nav-btn" data-page="phrases" onclick="navigate('phrases')">🗣️ Phrases</button>
   <button class="nav-btn" data-page="quiz" onclick="navigate('quiz')">🎯 Quiz</button>
   <button class="nav-btn" data-page="progress" onclick="navigate('progress')">📈 Progression</button>
   <button class="nav-btn" data-page="stats" onclick="navigate('stats')">📊 Stats</button>
@@ -45,6 +46,15 @@
         </select>
       </div>
       <div class="form-group">
+        <label>Nature</label>
+        <select id="vocabKind" onchange="loadVocabulary()">
+          <option value="">Tout</option>
+          <option value="mot">Mots et termes</option>
+          <option value="phrase">Phrases</option>
+          <option value="correction">Mes corrections</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Recherche</label>
         <input type="search" id="vocabSearch" placeholder="Rechercher un mot…" oninput="debounceSearch()">
       </div>
@@ -56,7 +66,41 @@
   <div id="vocabList"></div>
 </div>
 
+<div class="page" id="page-phrases">
+<h2 class="page-title">🗣️ Phrases & <span>corrections</span></h2>
+  <div class="card">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Langue</label>
+        <select id="phrasesLang" onchange="loadPhrases()"></select>
+      </div>
+      <div class="form-group">
+        <label>Origine</label>
+        <select id="phrasesSource" onchange="loadPhrases()">
+          <option value="">Tout</option>
+          <option value="recap-it">Session IT</option>
+          <option value="recap-dev">Session développement</option>
+          <option value="recap-magistrats">Session magistrats</option>
+          <option value="recap-multilingue">Multilingue</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nature</label>
+        <select id="phrasesKind" onchange="loadPhrases()">
+          <option value="phrase">Phrases à dire</option>
+          <option value="correction">Mes erreurs corrigées</option>
+          <option value="mot">Points de grammaire et lexique</option>
+        </select>
+      </div>
+    </div>
+    <div id="phrasesCount" style="font-size:0.85rem;color:var(--text2);margin-top:8px;"></div>
+  </div>
+  <div id="phrasesList"></div>
+</div>
+
 <div class="page" id="page-quiz">
+  
+
   <h2 class="page-title">🎯 Quiz <span>QCM</span></h2>
   <div class="card" id="quizConfig">
     <div class="form-row">

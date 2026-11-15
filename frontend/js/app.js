@@ -21,6 +21,7 @@ function navigate(page) {
   switch(page) {
     case 'dashboard': loadDashboard(); break;
     case 'vocabulary': loadLanguages('vocabLang'); loadCategories('vocabCategory'); loadVocabulary(); break;
+    case 'phrases': loadLanguages('phrasesLang'); loadPhrases(); break;
     case 'quiz': loadLanguages('quizLang'); loadCategories('quizCategory'); break;
     case 'progress': loadLanguages('progressLang'); loadProgress(); loadMistakes(); break;
     case 'stats': loadStats(); break;
@@ -132,6 +133,68 @@ async function loadDashboard() {
 }
 
 // ======== VOCABULARY ========
+/**
+ * Phrase, correction ou terme : trois choses différentes à apprendre.
+ * - une phrase se lit français -> langue cible, avec la nuance qui explique le choix de mots ;
+ * - une correction montre ce qui a été écrit puis ce qu'il faut écrire : c'est la plus utile,
+ *   parce que l'erreur est déjà la sienne ;
+ * - un terme est une étiquette courte avec son explication.
+ */
+async function loadPhrases() {
+  const lang = document.getElementById('phrasesLang')?.value || 'en';
+  const kind = document.getElementById('phrasesKind')?.value || 'phrase';
+  const source = document.getElementById('phrasesSource')?.value || '';
+  const el = document.getElementById('phrasesList');
+  const compteur = document.getElementById('phrasesCount');
+  if (!el) return;
+  el.innerHTML = '<div class="spinner"></div>';
+
+  const params = new URLSearchParams({ language: lang, kind, page: '1', per_page: '200' });
+  if (source) params.set('source', source);
+
+  const data = await api(`/vocabulary/words?${params}`);
+  if (data.error) { el.innerHTML = `<div class="card">Erreur : ${data.error}</div>`; return; }
+  if (!data.items?.length) {
+    el.innerHTML = '<div class="card">Rien dans cette catégorie pour cette langue.</div>';
+    if (compteur) compteur.textContent = '';
+    return;
+  }
+  if (compteur) compteur.textContent = `${data.total} entrée${data.total > 1 ? 's' : ''}`;
+
+  const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  if (kind === 'correction') {
+    el.innerHTML = data.items.map(w => `
+      <div class="card" style="margin-bottom:10px;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);">
+          ${esc(w.subcategory || '')}${w.category ? ' · ' + esc(w.category) : ''}
+        </div>
+        <div style="margin:6px 0 2px;color:#c0564f;text-decoration:line-through;">${esc(w.french)}</div>
+        <div style="font-size:1.02rem;font-weight:600;color:var(--success,#2e9e5b);margin-bottom:6px;">
+          ${esc(w.translation)}</div>
+        ${w.notes ? `<div style="font-size:0.86rem;line-height:1.5;color:var(--text2);">${esc(w.notes)}</div>` : ''}
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button class="speak-btn" onclick="speak(this.dataset.t,'${lang}')" data-t="${esc(w.translation)}">🔊</button>
+        </div>
+      </div>`).join('');
+    return;
+  }
+
+  el.innerHTML = data.items.map(w => `
+    <div class="card" style="margin-bottom:10px;">
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);">
+        ${esc(w.subcategory || '')}${w.category ? ' · ' + esc(w.category) : ''}
+      </div>
+      <div style="margin:6px 0 2px;font-weight:600;">${esc(w.french)}</div>
+      <div style="font-size:1.02rem;color:var(--accent,#4a90d9);margin-bottom:6px;">${esc(w.translation)}</div>
+      ${w.notes ? `<div style="font-size:0.86rem;line-height:1.5;color:var(--text2);">${esc(w.notes)}</div>` : ''}
+      <div style="margin-top:8px;">
+        <button class="speak-btn" onclick="speak(this.dataset.t,'${lang}')" data-t="${esc(w.translation)}">🔊</button>
+      </div>
+    </div>`).join('');
+}
+
 async function loadVocabulary() {
   const lang = document.getElementById('vocabLang').value;
   const category = document.getElementById('vocabCategory').value;
@@ -142,6 +205,8 @@ async function loadVocabulary() {
   const params = new URLSearchParams({ language: lang, page: '1', per_page: '200' });
   if (category) params.set('category', category);
   if (search) params.set('search', search);
+  const kind = document.getElementById('vocabKind')?.value;
+  if (kind) params.set('kind', kind);
 
   const data = await api(`/vocabulary/words?${params}`);
   if (data.error) { el.innerHTML = `<div class="card">Erreur: ${data.error}</div>`; return; }

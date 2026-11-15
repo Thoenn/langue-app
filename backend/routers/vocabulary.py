@@ -42,7 +42,10 @@ async def get_categories():
     return await asyncio.to_thread(_q)
 
 @router.get("/words")
-async def get_words(language: str = "en", category: str = None, search: str = None, page: int = 1, per_page: int = 50):
+async def get_words(language: str = "en", category: str = None, search: str = None,
+                    page: int = 1, per_page: int = 50, kind: str = None, source: str = None):
+    """Liste les entrées. `kind` distingue mot / phrase / correction, `source` l'origine
+    (recap-it, recap-dev, recap-magistrats, recap-multilingue, app)."""
     def _q():
         conn = get_sync_conn()
         params = [language]
@@ -50,18 +53,40 @@ async def get_words(language: str = "en", category: str = None, search: str = No
         if category:
             where += " AND c.name = ?"
             params.append(category)
+        if kind:
+            where += " AND COALESCE(w.kind, 'mot') = ?"
+            params.append(kind)
+        if source:
+            where += " AND COALESCE(w.source, 'app') = ?"
+            params.append(source)
         if search:
             where += " AND (w.french LIKE ? OR t.translation LIKE ?)"
             params.extend([f"%{search}%", f"%{search}%"])
         total = conn.execute(f"SELECT COUNT(*) FROM words w JOIN translations t ON t.word_id = w.id LEFT JOIN categories c ON c.id = w.category_id WHERE {where}", params).fetchone()[0]
         offset = (page - 1) * per_page
         rows = conn.execute(
-            f"SELECT w.id, w.french, c.name as cat_name, c.emoji as cat_emoji, w.subcategory, t.translation, t.phonetic, t.example_fr, t.example_target, t.notes FROM words w JOIN translations t ON t.word_id = w.id LEFT JOIN categories c ON c.id = w.category_id WHERE {where} ORDER BY w.french LIMIT ? OFFSET ?",
+            f"SELECT w.id, w.french, COALESCE(w.kind,'mot') AS kind, COALESCE(w.source,'app') AS source, c.name as cat_name, c.emoji as cat_emoji, w.subcategory, t.translation, t.phonetic, t.example_fr, t.example_target, t.notes FROM words w JOIN translations t ON t.word_id = w.id LEFT JOIN categories c ON c.id = w.category_id WHERE {where} ORDER BY w.french LIMIT ? OFFSET ?",
             params + [per_page, offset],
         ).fetchall()
         conn.close()
-        return {"items": [{"id": r["id"], "french": r["french"], "category": r["cat_name"], "category_emoji": r["cat_emoji"] or "", "subcategory": r["subcategory"], "translation": r["translation"], "phonetic": r["phonetic"] or "", "example_fr": r["example_fr"] or "", "example_target": r["example_target"] or "", "notes": r["notes"] or ""} for r in rows], "total": total, "page": page, "per_page": per_page}
+        return {"items": [{"id": r["id"], "french": r["french"], "category": r["cat_name"], "category_emoji": r["cat_emoji"] or "", "subcategory": r["subcategory"], "kind": r["kind"], "source": r["source"], "translation": r["translation"], "phonetic": r["phonetic"] or "", "example_fr": r["example_fr"] or "", "example_target": r["example_target"] or "", "notes": r["notes"] or ""} for r in rows], "total": total, "page": page, "per_page": per_page}
     return await asyncio.to_thread(_q)
+
+@router.get("/kinds")
+async def get_kinds():
+    """Ce que contient le carnet, par nature : de quoi construire des compteurs honnêtes."""
+    def _q():
+        conn = get_sync_conn()
+        rows = conn.execute(
+            "SELECT COALESCE(kind,'mot') AS kind, COUNT(*) AS n FROM words GROUP BY 1").fetchall()
+        sources = conn.execute(
+            "SELECT COALESCE(source,'app') AS source, COUNT(*) AS n FROM words GROUP BY 1 ORDER BY 2 DESC"
+        ).fetchall()
+        conn.close()
+        return {"kinds": {r["kind"]: r["n"] for r in rows},
+                "sources": {r["source"]: r["n"] for r in sources}}
+    return await asyncio.to_thread(_q)
+
 
 @router.get("/words/{word_id}")
 async def get_word(word_id: int):
