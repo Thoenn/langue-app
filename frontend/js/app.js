@@ -72,21 +72,72 @@ async function loadCategories(selectId) {
 }
 
 // ======== TTS ========
-function speak(text, lang = 'fr') {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang === 'fr' ? 'fr-FR' :
-    lang === 'en' ? 'en-US' :
-    lang === 'es' ? 'es-ES' :
-    lang === 'de' ? 'de-DE' :
-    lang === 'it' ? 'it-IT' :
-    lang === 'ru' ? 'ru-RU' :
-    lang === 'zh' ? 'zh-CN' :
-    lang === 'ja' ? 'ja-JP' : 'fr-FR';
-  utterance.rate = 0.9;
-  speechSynthesis.speak(utterance);
+/** Échappement pour un attribut HTML : un mot peut contenir des guillemets. */
+function attr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+const VOIX = {
+  fr: 'fr-FR', en: 'en-US', es: 'es-ES', de: 'de-DE', it: 'it-IT',
+  ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP', kr: 'ko-KR', km: 'km-KH', la: 'fr-FR',
+};
+
+/**
+ * Prononce un texte. Trois chemins, dans l'ordre :
+ *  1. la voix native de l'application Android (une WebView n'a PAS de synthèse vocale,
+ *     donc `speechSynthesis` y est absent : sans ce pont, tous les boutons d'écoute
+ *     resteraient muets dans l'APK) ;
+ *  2. la synthèse du navigateur, quand elle existe ;
+ *  3. sinon un message clair — mieux qu'un bouton qui ne fait visiblement rien.
+ */
+function parler(texte, lang = 'fr') {
+  const t = String(texte == null ? '' : texte).trim();
+  if (!t) return;
+  const locale = VOIX[lang] || 'fr-FR';
+
+  if (window.MichelVoix && typeof window.MichelVoix.parler === 'function') {
+    try { window.MichelVoix.parler(t, locale); return; } catch (e) { /* on tente la suite */ }
+  }
+  if (window.speechSynthesis && typeof SpeechSynthesisUtterance === 'function') {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = locale;
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+      return;
+    } catch (e) { /* on tente la suite */ }
+  }
+  signalerSansVoix();
+}
+
+let dejaSignale = false;
+function signalerSansVoix() {
+  if (dejaSignale) return;
+  dejaSignale = true;
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:14px;z-index:9999;'
+    + 'border:1px solid var(--accent2);font-size:0.9rem;';
+  d.textContent = "🔇 Aucune voix disponible ici. Ouvre l'application Langue ou le site dans Chrome pour entendre la prononciation.";
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 7000);
+}
+
+/** Ancien nom, conservé : le reste du code appelle encore speak(). */
+function speak(texte, lang = 'fr') { parler(texte, lang); }
+
+/* Un seul écouteur pour tous les boutons d'écoute. Le texte passe par data-parle au lieu
+   d'être écrit dans l'attribut onclick : plus d'apostrophe qui casse le bouton. */
+document.addEventListener('click', (ev) => {
+  const bouton = ev.target.closest ? ev.target.closest('[data-parle]') : null;
+  if (!bouton) return;
+  ev.stopPropagation();
+  ev.preventDefault();
+  parler(bouton.dataset.parle, bouton.dataset.langue || 'fr');
+}, true);
 
 // ======== DASHBOARD ========
 async function loadDashboard() {
@@ -178,7 +229,7 @@ async function loadPhrases() {
           <span style="color:#c0564f;text-decoration:line-through;">${esc(w.example_target)}</span></div>` : ''}
         ${w.notes ? `<div style="font-size:0.86rem;line-height:1.5;color:var(--text2);">${esc(w.notes)}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:8px;">
-          <button class="speak-btn" onclick="speak(this.dataset.t,'${lang}')" data-t="${esc(w.translation)}">🔊</button>
+          <button class="speak-btn" data-parle="${esc(w.translation)}" data-langue="${lang}">🔊</button>
         </div>
       </div>`).join('');
     return;
@@ -193,7 +244,7 @@ async function loadPhrases() {
       <div style="font-size:1.02rem;color:var(--accent,#4a90d9);margin-bottom:6px;">${esc(w.translation)}</div>
       ${w.notes ? `<div style="font-size:0.86rem;line-height:1.5;color:var(--text2);">${esc(w.notes)}</div>` : ''}
       <div style="margin-top:8px;">
-        <button class="speak-btn" onclick="speak(this.dataset.t,'${lang}')" data-t="${esc(w.translation)}">🔊</button>
+        <button class="speak-btn" data-parle="${esc(w.translation)}" data-langue="${lang}">🔊</button>
       </div>
     </div>`).join('');
 }
@@ -239,8 +290,8 @@ async function loadVocabulary() {
              style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           ${w.collection_ids?.length ? `<span title="collection" style="font-size:0.8rem;">📁${w.collection_ids.length}</span>` : ''}
           ${w.category_emoji ? `<span class="vocab-cat-glyph" title="catégorie">${w.category_emoji}</span>` : ''}
-          <button class="speak-btn" onclick="event.stopPropagation();speak('${w.french.replace(/'/g, "\\'")}','fr')">🔊</button>
-          ${w.translation ? `<button class="speak-btn" onclick="event.stopPropagation();speak('${w.translation.replace(/'/g, "\\'")}','${lang}')">🌍</button>` : ''}
+          <button class="speak-btn" data-parle="${attr(w.french)}" data-langue="fr">🔊</button>
+          ${w.translation ? `<button class="speak-btn" data-parle="${attr(w.translation)}" data-langue="${lang}">🌍</button>` : ''}
           <button class="speak-btn" title="important à connaître" onclick="toggleFavori(${w.id}, event)" style="${w.favorite ? '' : 'opacity:.35;'}">${w.favorite ? '⭐' : '☆'}</button>
           <button class="speak-btn" title="ranger dans une collection" onclick="basculerDansCollection(${w.id}, event)">📁</button>
           <button class="speak-btn" title="supprimer" onclick="event.stopPropagation();deleteWord(${w.id}, '${(w.french || '').replace(/'/g, "\\'")}')">🗑️</button>
@@ -348,7 +399,7 @@ async function showWordDetail(wordId) {
         <span class="lang-trans"><strong>${t.translation}</strong>
           ${t.phonetic ? `<span class="lang-phonetic"> [${t.phonetic}]</span>` : ''}
         </span>
-        <button class="speak-btn" onclick="speak('${t.translation.replace(/'/g, "\\'")}','${lang}')">🔊</button>
+        <button class="speak-btn" data-parle="${attr(t.translation)}" data-langue="${lang}">🔊</button>
       </div>`;
   });
 
@@ -821,7 +872,7 @@ function formatAIResponse(action, data) {
         <div style="padding:8px;margin-bottom:8px;background:var(--bg3);border-radius:8px;">
           <div>${s.fr}</div>
           <div style="color:var(--accent2);">→ ${s.target}</div>
-          <button class="speak-btn" onclick="speak('${(s.target || '').replace(/'/g, "\\'")}','en')">🔊</button>
+          <button class="speak-btn" data-parle="${attr(s.target)}" data-langue="en">🔊</button>
         </div>
       `).join('')}
     </div>`;
@@ -1127,8 +1178,8 @@ async function loadLangVocab(code) {
           <div class="vocab-trans">${w.translation}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <button class="speak-btn" onclick="event.stopPropagation();speak('${w.french.replace(/'/g, "\\'")}','fr')">🔊</button>
-          <button class="speak-btn" onclick="event.stopPropagation();speak('${(w.translation || '').replace(/'/g, "\\'")}','${code}')">🌍</button>
+          <button class="speak-btn" data-parle="${attr(w.french)}" data-langue="fr">🔊</button>
+          <button class="speak-btn" data-parle="${attr(w.translation)}" data-langue="${code}">🌍</button>
         </div>
       </div>
     `).join('')}
