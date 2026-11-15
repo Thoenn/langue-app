@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Langue App — Michel</title>
-<link rel="stylesheet" href="/langue/css/style.css">
+<link rel="stylesheet" href="/langue/css/style.css?v=20261116b">
 </head>
 <body>
 
@@ -255,6 +255,11 @@
 
 </main>
 
-<script src="/langue/js/app.js"></script>
+<!-- Le numéro de version ci-dessus force le navigateur à reprendre le fichier après
+     une mise à jour : sans lui, le serveur ne pose pas de Cache-Control et les téléphones
+     continuent d'exécuter l'ancien app.js pendant des jours (symptôme vécu : des boutons
+     en double et des clics qui ouvrent la mauvaise fenêtre). À incrémenter à chaque
+     modification de app.js ou de style.css. -->
+<script src="/langue/js/app.js?v=20261116b"></script>
 </body>
 </html>

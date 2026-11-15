@@ -170,9 +170,12 @@ async function loadPhrases() {
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);">
           ${esc(w.subcategory || '')}${w.category ? ' · ' + esc(w.category) : ''}
         </div>
-        <div style="margin:6px 0 2px;color:#c0564f;text-decoration:line-through;">${esc(w.french)}</div>
+        <div style="margin:6px 0 2px;font-weight:600;">${esc(w.french)}</div>
         <div style="font-size:1.02rem;font-weight:600;color:var(--success,#2e9e5b);margin-bottom:6px;">
           ${esc(w.translation)}</div>
+        ${w.example_target ? `<div style="font-size:0.86rem;margin-bottom:6px;">
+          <span style="color:var(--text2);">Ce que tu avais écrit :</span>
+          <span style="color:#c0564f;text-decoration:line-through;">${esc(w.example_target)}</span></div>` : ''}
         ${w.notes ? `<div style="font-size:0.86rem;line-height:1.5;color:var(--text2);">${esc(w.notes)}</div>` : ''}
         <div style="margin-top:8px;display:flex;gap:8px;">
           <button class="speak-btn" onclick="speak(this.dataset.t,'${lang}')" data-t="${esc(w.translation)}">🔊</button>
@@ -232,14 +235,14 @@ async function loadVocabulary() {
           <div class="vocab-trans">${w.translation}</div>
           ${w.phonetic ? `<div class="vocab-phonetic">${w.phonetic}</div>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div class="vocab-actions" onclick="event.stopPropagation()"
+             style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           ${w.collection_ids?.length ? `<span title="collection" style="font-size:0.8rem;">📁${w.collection_ids.length}</span>` : ''}
-          ${w.category_emoji ? `<span>${w.category_emoji}</span>` : ''}
+          ${w.category_emoji ? `<span class="vocab-cat-glyph" title="catégorie">${w.category_emoji}</span>` : ''}
           <button class="speak-btn" onclick="event.stopPropagation();speak('${w.french.replace(/'/g, "\\'")}','fr')">🔊</button>
           ${w.translation ? `<button class="speak-btn" onclick="event.stopPropagation();speak('${w.translation.replace(/'/g, "\\'")}','${lang}')">🌍</button>` : ''}
           <button class="speak-btn" title="important à connaître" onclick="toggleFavori(${w.id}, event)" style="${w.favorite ? '' : 'opacity:.35;'}">${w.favorite ? '⭐' : '☆'}</button>
           <button class="speak-btn" title="ranger dans une collection" onclick="basculerDansCollection(${w.id}, event)">📁</button>
-          <button class="speak-btn" title="modifier" onclick="event.stopPropagation();showEditWord(${w.id})">✏️</button>
           <button class="speak-btn" title="supprimer" onclick="event.stopPropagation();deleteWord(${w.id}, '${(w.french || '').replace(/'/g, "\\'")}')">🗑️</button>
         </div>
       </div>
