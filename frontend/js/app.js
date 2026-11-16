@@ -30,8 +30,52 @@ function navigate(page) {
   }
 }
 
+// ======== CHARGEMENT VISIBLE ========
+/* Un appel réseau qui prend du temps ne doit pas laisser l'écran immobile : on affiche
+   une barre fine en haut. Elle n'apparaît qu'au-delà de 200 ms, sinon chaque petite
+   requête ferait clignoter l'écran pour rien. */
+let appelsEnCours = 0;
+let minuterieBarre = null;
+
+function barre() {
+  let b = document.getElementById('barreChargement');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'barreChargement';
+    b.className = 'barre-chargement';
+    document.body.appendChild(b);
+  }
+  return b;
+}
+
+function chargementDebut() {
+  appelsEnCours++;
+  if (appelsEnCours === 1) {
+    clearTimeout(minuterieBarre);
+    minuterieBarre = setTimeout(() => {
+      const b = barre();
+      b.classList.add('visible');
+      b.style.width = '35%';
+      setTimeout(() => { if (appelsEnCours > 0) b.style.width = '75%'; }, 500);
+    }, 200);
+  }
+}
+
+function chargementFin() {
+  appelsEnCours = Math.max(0, appelsEnCours - 1);
+  if (appelsEnCours > 0) return;
+  clearTimeout(minuterieBarre);
+  const b = barre();
+  b.style.width = '100%';
+  setTimeout(() => {
+    b.classList.remove('visible');
+    b.style.width = '0';
+  }, 250);
+}
+
 // ======== API CALL ========
 async function api(url, options = {}) {
+  chargementDebut();
   try {
     const res = await fetch(apiUrl(url), {
       headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -42,6 +86,8 @@ async function api(url, options = {}) {
   } catch (err) {
     console.error('API Error:', err);
     return { error: err.message };
+  } finally {
+    chargementFin();
   }
 }
 
@@ -282,19 +328,30 @@ async function loadVocabulary() {
     <div class="card" style="padding:0;">${data.items.map(w => `
       <div class="vocab-item" onclick="showWordDetail(${w.id})">
         <div style="min-width:0;">
-          <div class="vocab-fr">${w.french}</div>
+          <div class="vocab-fr">
+            ${w.category_emoji ? `<span class="vocab-cat-glyph" title="${attr(w.category || 'catégorie')}">${w.category_emoji}</span>` : ''}
+            ${w.french}
+            ${w.collection_ids?.length ? `<span class="etiquette-collection" title="rangée dans ${w.collection_ids.length} collection(s)">📁 ${w.collection_ids.length}</span>` : ''}
+          </div>
           <div class="vocab-trans">${w.translation}</div>
           ${w.phonetic ? `<div class="vocab-phonetic">${w.phonetic}</div>` : ''}
         </div>
-        <div class="vocab-actions" onclick="event.stopPropagation()"
-             style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-          ${w.collection_ids?.length ? `<span title="collection" style="font-size:0.8rem;">📁${w.collection_ids.length}</span>` : ''}
-          ${w.category_emoji ? `<span class="vocab-cat-glyph" title="catégorie">${w.category_emoji}</span>` : ''}
-          <button class="speak-btn" data-parle="${attr(w.french)}" data-langue="fr">🔊</button>
-          ${w.translation ? `<button class="speak-btn" data-parle="${attr(w.translation)}" data-langue="${lang}">🌍</button>` : ''}
-          <button class="speak-btn" title="important à connaître" onclick="toggleFavori(${w.id}, event)" style="${w.favorite ? '' : 'opacity:.35;'}">${w.favorite ? '⭐' : '☆'}</button>
-          <button class="speak-btn" title="ranger dans une collection" onclick="basculerDansCollection(${w.id}, event)">📁</button>
-          <button class="speak-btn" title="supprimer" onclick="event.stopPropagation();deleteWord(${w.id}, '${(w.french || '').replace(/'/g, "\\'")}')">🗑️</button>
+        <div class="vocab-actions" onclick="event.stopPropagation()">
+          <button class="bouton-action" title="écouter en français"
+                  data-parle="${attr(w.french)}" data-langue="fr" data-attente="Écoute">
+            <span class="glyphe">🔊</span><span class="libelle">Écouter</span></button>
+          ${w.translation ? `<button class="bouton-action" title="écouter en ${lang}"
+                  data-parle="${attr(w.translation)}" data-langue="${lang}" data-attente="Écoute">
+            <span class="glyphe">🌍</span><span class="libelle">${lang.toUpperCase()}</span></button>` : ''}
+          <button class="bouton-action ${w.favorite ? 'actif' : ''}" title="important à connaître"
+                  onclick="toggleFavori(${w.id}, event, this)" data-favori="${w.favorite ? 1 : 0}">
+            <span class="glyphe">${w.favorite ? '⭐' : '☆'}</span><span class="libelle">${w.favorite ? 'À savoir' : 'Marquer'}</span></button>
+          <button class="bouton-action" title="ranger dans une collection"
+                  onclick="basculerDansCollection(${w.id}, event, this)">
+            <span class="glyphe">📁</span><span class="libelle">Ranger</span></button>
+          <button class="bouton-action danger" title="supprimer cette entrée"
+                  onclick="event.stopPropagation();deleteWord(${w.id}, '${(w.french || '').replace(/'/g, "\\'")}')">
+            <span class="glyphe">🗑️</span><span class="libelle">Supprimer</span></button>
         </div>
       </div>
     `).join('')}</div>`;
@@ -332,11 +389,27 @@ function toggleFavorisOnly() {
   loadVocabulary();
 }
 
-async function toggleFavori(wordId, ev) {
+/** Met un bouton en attente visible le temps de son action. */
+async function avecAttente(bouton, action) {
+  if (!bouton) return action();
+  const avant = bouton.innerHTML;
+  bouton.disabled = true;
+  bouton.innerHTML = '<span class="glyphe">⏳</span><span class="libelle">…</span>';
+  try {
+    return await action();
+  } finally {
+    bouton.disabled = false;
+    bouton.innerHTML = avant;
+  }
+}
+
+async function toggleFavori(wordId, ev, bouton) {
   if (ev) ev.stopPropagation();
-  const r = await api(`/vocabulary/words/${wordId}/favorite`, { method: 'POST' });
-  if (r.error) return;
-  loadVocabulary();
+  await avecAttente(bouton, async () => {
+    const r = await api(`/vocabulary/words/${wordId}/favorite`, { method: 'POST' });
+    if (r.error) return;
+    loadVocabulary();
+  });
 }
 
 async function creerCollection() {
@@ -360,8 +433,9 @@ async function supprimerCollection() {
 }
 
 /** Ajoute ou retire une entrée de la collection choisie dans le sélecteur. */
-async function basculerDansCollection(wordId, ev) {
+async function basculerDansCollection(wordId, ev, bouton) {
   if (ev) ev.stopPropagation();
+  if (bouton) { bouton.disabled = true; setTimeout(() => { bouton.disabled = false; }, 400); }
   const sel = document.getElementById('vocabulary') && document.getElementById('vocabCollection');
   let cid = sel?.value;
   if (!cid) {

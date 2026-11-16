@@ -6,6 +6,15 @@
   --warning: #fbbf24; --radius: 12px; --shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
 html { font-size: 16px; }
+
+/* Barre de chargement : on voit qu'une action est en cours, même quand elle dure. */
+.barre-chargement {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  z-index: 10000; opacity: 0;
+  transition: width .25s ease-out, opacity .3s;
+}
+.barre-chargement.visible { opacity: 1; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg); color: var(--text); min-height: 100vh;
@@ -105,6 +114,34 @@ label { display: block; margin-bottom: 4px; color: var(--text2); font-size: 0.85
   cursor: pointer; transition: background 0.2s;
 }
 .vocab-item:last-child { border-bottom: none; }
+
+/* Les actions d'une ligne : de vrais boutons, pas des glyphes nus.
+   Un glyphe seul se confond avec une décoration et sa cible tactile est trop petite. */
+.vocab-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.bouton-action {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 11px; min-height: 36px;
+  border: 1px solid var(--bg3); border-radius: 999px;
+  background: var(--bg2); color: var(--text2);
+  font-family: inherit; font-size: 0.8rem; font-weight: 600; line-height: 1;
+  cursor: pointer; transition: transform .12s, border-color .15s, color .15s, background .15s;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
+}
+.bouton-action .glyphe { font-size: 1rem; }
+@media (hover: hover) {
+  .bouton-action:hover { border-color: var(--accent2); color: var(--text); background: var(--bg3); }
+}
+.bouton-action:active { transform: scale(.96); }
+.bouton-action.actif { border-color: var(--warning); color: var(--warning); }
+.bouton-action.danger { border-color: var(--danger); color: var(--danger); }
+.bouton-action:disabled { opacity: .55; cursor: progress; }
+/* sur écran étroit, le libellé cède la place au glyphe : la cible reste un bouton */
+@media (max-width: 430px) {
+  .bouton-action .libelle { display: none; }
+  .bouton-action { padding: 8px 12px; }
+}
 /* Sur un téléphone, :hover reste collé après l'appui : la ligne entière s'allumait quand on
    touchait un bouton. On ne garde le survol que sur les appareils qui en ont un. */
 @media (hover: hover) {
@@ -113,6 +150,12 @@ label { display: block; margin-bottom: 4px; color: var(--text2); font-size: 0.85
 .vocab-item, .vocab-actions { -webkit-tap-highlight-color: transparent; }
 .vocab-actions { touch-action: manipulation; }
 .vocab-fr { font-weight: 600; color: var(--text); }
+.vocab-cat-glyph { margin-right: 6px; font-size: 0.95rem; opacity: .85; }
+.etiquette-collection {
+  display: inline-block; margin-left: 8px; padding: 2px 7px;
+  border-radius: 6px; background: var(--bg3); color: var(--text2);
+  font-size: 0.72rem; font-weight: 600; vertical-align: middle;
+}
 .vocab-trans { color: var(--text2); font-size: 0.9rem; }
 .vocab-phonetic { color: var(--accent2); font-size: 0.8rem; font-style: italic; }
 .vocab-category { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; background: var(--bg3); color: var(--text2); margin-left: 8px; }
